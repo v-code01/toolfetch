@@ -2,3 +2,16 @@ ledger/*/build/
 target/
 *.log
 .DS_Store
+.superpowers/
+
+# Python build + runtime artifacts
+__pycache__/
+*.egg-info/
+.pytest_cache/
+
+# Vulcan runtime state (durable home is $VULCAN_HOME, not the source tree)
+state.json
+state.json.tmp
+log.ndjson
+ledger/
+research/

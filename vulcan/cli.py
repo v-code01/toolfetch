@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from dataclasses import asdict
 from pathlib import Path
 
@@ -65,3 +66,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "gate":
         return _cmd_gate(args.which, args.repo)
     return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
