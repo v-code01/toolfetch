@@ -1,3 +1,4 @@
+import os
 import subprocess
 from pathlib import Path
 
@@ -44,3 +45,26 @@ def test_detects_generated_with(tmp_path: Path):
     _init(r)
     _commit(r, "feat: thing\n\nGenerated with Claude Code")
     assert is_clean(str(r)) is False
+
+
+def test_detects_dirty_committer_with_clean_author(tmp_path: Path):
+    # C-2: clean author, but committer set to Claude/anthropic must be caught.
+    r = tmp_path / "committer"
+    _init(r)
+    (r / "f.txt").write_text("x")
+    _git(r, "add", "-A")
+    env = {
+        **os.environ,
+        "GIT_COMMITTER_NAME": "Claude",
+        "GIT_COMMITTER_EMAIL": "noreply@anthropic.com",
+    }
+    _git(r, "commit", "-q", "-m", "feat: clean author work", env=env)
+    assert is_clean(str(r)) is False
+
+
+def test_non_git_dir_fails_closed(tmp_path: Path):
+    # I-1: an unscannable (non-git) repo is NOT clean, and must not raise.
+    d = tmp_path / "plain"
+    d.mkdir()
+    assert scan_history(str(d)) != []
+    assert is_clean(str(d)) is False
