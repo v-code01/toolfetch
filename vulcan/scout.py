@@ -16,6 +16,17 @@ SOURCES = [
 
 
 def arxiv_query(categories: list[str], days: int) -> str:
+    """Build an arXiv API query string for the given categories and lookback.
+
+    The `days` window is NOT a hard server-side filter. arXiv's API exposes
+    only a coarse `submittedDate:[YYYYMMDD TO YYYYMMDD]` range that is
+    unreliable for short, recent windows, so the window is instead enforced by
+    driver-side post-filtering of each entry's `<published>` date. Here `days`
+    only sizes `max_results` (heuristic: ~10 fresh submissions/day across the
+    chosen categories), and results are returned newest-first
+    (`sortBy=submittedDate&sortOrder=descending`) so the driver can stop once
+    entries fall outside the window.
+    """
     cats = "+OR+".join(f"cat:{c}" for c in categories)
     return (
         f"search_query=({cats})&sortBy=submittedDate"
