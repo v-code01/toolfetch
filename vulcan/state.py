@@ -25,12 +25,21 @@ def _state_path(home: Path) -> Path:
 
 
 def load(home: Path) -> State:
-    """Load state, or a fresh idle state at the scout phase if none exists."""
+    """Load state, or a fresh idle state at the scout phase if none exists.
+
+    A corrupt/garbled `state.json` must not wedge the driver: recover to the
+    fresh idle state and record the recovery in the durable event log so the
+    loss is observable rather than silent.
+    """
     p = _state_path(home)
     if not p.exists():
         return State(None, "scout", "idle", 0)
-    d = json.loads(p.read_text())
-    return State(d["current_project"], d["phase"], d["status"], d["attempt"])
+    try:
+        d = json.loads(p.read_text())
+        return State(d["current_project"], d["phase"], d["status"], d["attempt"])
+    except (json.JSONDecodeError, KeyError, TypeError, OSError) as exc:
+        log_event(home, {"event": "state_recovery", "error": f"{type(exc).__name__}: {exc}"})
+        return State(None, "scout", "idle", 0)
 
 
 def save(home: Path, state: State) -> None:

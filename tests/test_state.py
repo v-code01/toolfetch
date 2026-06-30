@@ -32,3 +32,15 @@ def test_log_event_appends_ndjson(tmp_path: Path):
 
 def test_ledger_dir_path(tmp_path: Path):
     assert ledger_dir(tmp_path, "0001-foo") == tmp_path / "ledger" / "0001-foo"
+
+def test_load_recovers_from_garbage_state(tmp_path: Path):
+    # M-4: a corrupt state.json recovers to fresh idle and logs the recovery.
+    (tmp_path / "state.json").write_text("{not valid json")
+    s = load(tmp_path)
+    assert s == State(None, "scout", "idle", 0)
+    log = (tmp_path / "log.ndjson").read_text()
+    assert "state_recovery" in log
+
+def test_load_recovers_from_missing_keys(tmp_path: Path):
+    (tmp_path / "state.json").write_text('{"phase": "build"}')
+    assert load(tmp_path) == State(None, "scout", "idle", 0)
