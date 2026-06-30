@@ -48,3 +48,15 @@ def test_check_fails_without_license(tmp_path: Path):
     def fake_run(cmd, **kw):
         return SimpleNamespace(returncode=0, stdout="", stderr="")
     assert passes(check(str(tmp_path), run=fake_run)) is False
+
+
+def test_check_fails_closed_when_toolchain_missing(tmp_path: Path):
+    # I-1: a runner that raises (cargo/ruff/pytest absent) must fail closed,
+    # not crash the gate.
+    _w(tmp_path / "Cargo.toml", "[package]")
+    _w(tmp_path / "LICENSE", "MIT")
+    def boom(cmd, **kw):
+        raise FileNotFoundError(cmd[0])
+    result = check(str(tmp_path), run=boom)
+    assert result["lint_ok"] is False and result["tests_ok"] is False
+    assert passes(result) is False

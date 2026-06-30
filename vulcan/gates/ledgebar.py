@@ -29,6 +29,15 @@ def has_license(repo: str) -> bool:
     return any((Path(repo) / name).exists() for name in ("LICENSE", "LICENSE.md", "LICENSE.txt"))
 
 
+def _run_ok(run, cmd: list[str], repo: str) -> bool:
+    """Run a quality command, treating any failure-to-run as a failure (fail
+    closed). A missing toolchain (cargo/ruff/pytest absent) is NOT a pass."""
+    try:
+        return run(cmd, cwd=repo, capture_output=True, text=True).returncode == 0
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return False
+
+
 def check(repo: str, run=subprocess.run) -> dict:
     kind = detect_kind(repo)
     commands: list[str] = []
@@ -37,8 +46,8 @@ def check(repo: str, run=subprocess.run) -> dict:
         lint = _CMDS[kind]["lint"]
         test = _CMDS[kind]["test"]
         commands += [" ".join(lint), " ".join(test)]
-        lint_ok = run(lint, cwd=repo, capture_output=True, text=True).returncode == 0
-        tests_ok = run(test, cwd=repo, capture_output=True, text=True).returncode == 0
+        lint_ok = _run_ok(run, lint, repo)
+        tests_ok = _run_ok(run, test, repo)
     return {
         "kind": kind,
         "license": has_license(repo),
