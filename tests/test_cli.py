@@ -1,3 +1,8 @@
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 from vulcan.cli import main
 
 
@@ -29,3 +34,16 @@ def test_gate_attribution_clean_repo_exits_zero(tmp_path, monkeypatch):
     g("add", "-A")
     g("commit", "-q", "-m", "feat: real")
     assert main(["gate", "attribution", str(r)]) == 0
+
+
+def test_python_dash_m_vulcan_runs(tmp_path):
+    # M-5: `python -m vulcan` must drive the CLI via vulcan/__main__.py.
+    repo = Path(__file__).resolve().parent.parent
+    env = {**os.environ, "VULCAN_HOME": str(tmp_path / "h")}
+    init = subprocess.run([sys.executable, "-m", "vulcan", "init"],
+                          cwd=repo, env=env, capture_output=True, text=True)
+    assert init.returncode == 0
+    status = subprocess.run([sys.executable, "-m", "vulcan", "status"],
+                            cwd=repo, env=env, capture_output=True, text=True)
+    assert status.returncode == 0
+    assert '"phase": "scout"' in status.stdout
