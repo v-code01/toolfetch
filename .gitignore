@@ -1,0 +1,4 @@
+ledger/*/build/
+target/
+*.log
+.DS_Store
