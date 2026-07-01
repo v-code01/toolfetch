@@ -37,7 +37,11 @@ from pathlib import Path
 STUB_PATTERNS = [
     r"todo!\(",
     r"unimplemented!\(",
-    r"unreachable!\(",
+    # Bare `unreachable!()` (no justification) is a lazy stub; a justified
+    # `unreachable!("<reason>")` documenting a proven-impossible branch is a
+    # legitimate invariant guard and is NOT flagged. Also flag stub-worded ones.
+    r"unreachable!\(\s*\)",
+    r'unreachable!\(\s*"[^"]*(?:not implemented|unimplemented|todo|fixme)',
     # panic!/bail! whose message announces missing work, in any case.
     r'panic!\(\s*"[^"]*(?:not implemented|unimplemented|todo)',
     r"bail!\([^)]*(?:not yet implemented|not implemented|unimplemented)",
@@ -160,17 +164,21 @@ def verify_claims(repo: str) -> list[str]:
         # not a crash. Report its text (or a placeholder) and move on.
         evidence = c.get("evidence")
         files = c.get("files") or []
-        text = c.get("text") or "<malformed claim: missing text>"
+        text = c.get("text") or c.get("statement") or "<malformed claim: missing text>"
         if not evidence or not files:
             unbacked.append(text)
             continue
-        found = any(
-            evidence in (root / f).read_text(errors="ignore")
-            for f in files
-            if (root / f).exists()
-        )
-        if not found:
-            unbacked.append(text)
+        # `evidence` may be a single substring or a list of substrings. Every
+        # listed substring must appear in at least one of the claim's files;
+        # a claim with any missing substring is unbacked.
+        substrings = [evidence] if isinstance(evidence, str) else list(evidence)
+        file_texts = [
+            (root / f).read_text(errors="ignore") for f in files if (root / f).exists()
+        ]
+        for sub in substrings:
+            if not any(isinstance(sub, str) and sub in ft for ft in file_texts):
+                unbacked.append(text)
+                break
     return unbacked
 
 

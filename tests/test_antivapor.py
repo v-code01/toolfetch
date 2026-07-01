@@ -78,6 +78,33 @@ def test_verify_claims_malformed_missing_evidence(tmp_path: Path):
     assert "no evidence key" in unbacked
 
 
+def test_verify_claims_evidence_list_and_statement(tmp_path: Path):
+    # A claim may use `statement` (alias of text) and a LIST of evidence
+    # substrings; every substring must be present, else the claim is unbacked.
+    _w(tmp_path / "src/a.rs", "// marker_alpha marker_beta 1.70x\nstruct S;\n")
+    _w(tmp_path / "vulcan-claims.toml",
+       '[[claim]]\nstatement="alpha beta and ratio"\nfiles=["src/a.rs"]\n'
+       'evidence=["marker_alpha", "marker_beta", "1.70x"]\n')
+    assert verify_claims(str(tmp_path)) == []  # all present -> backed
+    _w(tmp_path / "vulcan-claims.toml",
+       '[[claim]]\nstatement="one missing"\nfiles=["src/a.rs"]\n'
+       'evidence=["marker_alpha", "NOT_THERE"]\n')
+    assert verify_claims(str(tmp_path)) == ["one missing"]  # one missing -> unbacked
+
+
+def test_justified_unreachable_not_a_stub(tmp_path: Path):
+    # A justified `unreachable!("<reason>")` (proven-impossible branch) is a
+    # legitimate invariant guard, NOT a stub. Bare/stub-worded ones ARE stubs.
+    _w(tmp_path / "src/ok.rs",
+       'fn f() { unreachable!("rho checks always give a dependent set"); }\n')
+    _w(tmp_path / "src/bare.rs", "fn g() { unreachable!() }\n")
+    _w(tmp_path / "src/stub.rs", 'fn h() { unreachable!("TODO implement") }\n')
+    hits = {rel for rel, _line, _pat in find_stubs(str(tmp_path))}
+    assert not any("ok.rs" in h for h in hits), "justified unreachable must be allowed"
+    assert any("bare.rs" in h for h in hits), "bare unreachable!() is a stub"
+    assert any("stub.rs" in h for h in hits), "stub-worded unreachable is a stub"
+
+
 def test_scan_passes_on_clean_repo(tmp_path: Path):
     # A "clean" repo with a claim-bearing README must carry a matching manifest.
     _w(tmp_path / "src/lib.rs", "// real seqlock ring\nstruct Seqlock;\n")
