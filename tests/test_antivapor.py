@@ -62,7 +62,7 @@ def test_dangling_doc_refs_non_md_extension(tmp_path: Path):
 
 def test_verify_claims_backed_and_unbacked(tmp_path: Path):
     _w(tmp_path / "src/ring.rs", "// a real seqlock\nstruct Seqlock;\n")
-    _w(tmp_path / "vulcan-claims.toml",
+    _w(tmp_path / "claims.toml",
        '[[claim]]\ntext="uses a seqlock"\nevidence="Seqlock"\nfiles=["src/ring.rs"]\n'
        '[[claim]]\ntext="alibaba trace"\nevidence="alibaba"\nfiles=["src/ring.rs"]\n')
     unbacked = verify_claims(str(tmp_path))
@@ -72,7 +72,7 @@ def test_verify_claims_backed_and_unbacked(tmp_path: Path):
 def test_verify_claims_malformed_missing_evidence(tmp_path: Path):
     # M-1: a claim missing `evidence` is reported as unbacked, not a KeyError.
     _w(tmp_path / "src/x.rs", "struct S;\n")
-    _w(tmp_path / "vulcan-claims.toml",
+    _w(tmp_path / "claims.toml",
        '[[claim]]\ntext="no evidence key"\nfiles=["src/x.rs"]\n')
     unbacked = verify_claims(str(tmp_path))
     assert "no evidence key" in unbacked
@@ -82,11 +82,11 @@ def test_verify_claims_evidence_list_and_statement(tmp_path: Path):
     # A claim may use `statement` (alias of text) and a LIST of evidence
     # substrings; every substring must be present, else the claim is unbacked.
     _w(tmp_path / "src/a.rs", "// marker_alpha marker_beta 1.70x\nstruct S;\n")
-    _w(tmp_path / "vulcan-claims.toml",
+    _w(tmp_path / "claims.toml",
        '[[claim]]\nstatement="alpha beta and ratio"\nfiles=["src/a.rs"]\n'
        'evidence=["marker_alpha", "marker_beta", "1.70x"]\n')
     assert verify_claims(str(tmp_path)) == []  # all present -> backed
-    _w(tmp_path / "vulcan-claims.toml",
+    _w(tmp_path / "claims.toml",
        '[[claim]]\nstatement="one missing"\nfiles=["src/a.rs"]\n'
        'evidence=["marker_alpha", "NOT_THERE"]\n')
     assert verify_claims(str(tmp_path)) == ["one missing"]  # one missing -> unbacked
@@ -110,7 +110,7 @@ def test_scan_passes_on_clean_repo(tmp_path: Path):
     _w(tmp_path / "src/lib.rs", "// real seqlock ring\nstruct Seqlock;\n")
     _w(tmp_path / "README.md",
        "This crate achieves a 3x speedup using a Seqlock ring buffer.\n")
-    _w(tmp_path / "vulcan-claims.toml",
+    _w(tmp_path / "claims.toml",
        '[[claim]]\ntext="3x speedup via seqlock"\nevidence="Seqlock"\nfiles=["src/lib.rs"]\n')
     result = scan(str(tmp_path))
     assert passes(result) is True

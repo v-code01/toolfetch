@@ -1,7 +1,7 @@
 """C2 gate: refuse vapor — stubs, mocks, dangling docs, and unbacked claims.
 
 Encodes the nemesis-audit failure modes as mechanical checks. The README's
-honesty is enforced by `vulcan-claims.toml`: every headline claim must name an
+honesty is enforced by `claims.toml`: every headline claim must name an
 `evidence` string that grep finds in its backing `files`.
 
 C2 mechanization boundary (stated decision, not omission)
@@ -12,7 +12,7 @@ The clauses below are *fully mechanized* by this module and the CLI gate:
   - mock-framework usage outside test paths                      -> find_prod_mocks
   - dangling `docs/...` references that resolve to no file/dir   -> find_dangling_doc_refs
   - README/doc claims that grep cannot find in code, via the
-    `vulcan-claims.toml` evidence manifest, AND fail-closed when
+    `claims.toml` evidence manifest, AND fail-closed when
     a claim-bearing README ships with no manifest at all         -> verify_claims / scan
 
 Two C2 clauses are *genuinely dynamic* and CANNOT be soundly mechanized by a
@@ -60,7 +60,7 @@ _SRC_EXT = {".rs", ".py", ".go", ".ts", ".c", ".h", ".cpp", ".zig"}
 _DOC_REF_RE = re.compile(r"docs/[\w./-]+")
 _README_RE = re.compile(r"readme.*\.md$", re.IGNORECASE)
 # Benchmark-ish / claim-verb tokens that mark a README as making substantive,
-# verifiable assertions (and therefore requiring a `vulcan-claims.toml`).
+# verifiable assertions (and therefore requiring a `claims.toml`).
 _CLAIM_TOKEN_RE = re.compile(
     r"\d+(?:\.\d+)?\s*x\b"            # 17x, 17.17x, 600 x
     r"|\bGB/s\b|\bMB/s\b|\bGB/sec\b"
@@ -126,7 +126,7 @@ def find_dangling_doc_refs(repo: str) -> list[str]:
 
 def manifest_present(repo: str) -> bool:
     """True if the claims manifest exists; absence is a fail-closed signal."""
-    return (Path(repo) / "vulcan-claims.toml").exists()
+    return (Path(repo) / "claims.toml").exists()
 
 
 def _readme_files(repo: str):
@@ -143,7 +143,7 @@ def has_readme_claims(repo: str) -> bool:
 
     Substantive = long prose (>400 chars) OR benchmark-ish / claim-verb tokens
     (e.g. "17.17x", "GB/s", "speedup", "throughput"). Such a README MUST be
-    backed by a `vulcan-claims.toml`; see `scan()` for the fail-closed policy.
+    backed by a `claims.toml`; see `scan()` for the fail-closed policy.
     """
     for p in _readme_files(repo):
         text = p.read_text(errors="ignore")
@@ -154,7 +154,7 @@ def has_readme_claims(repo: str) -> bool:
 
 def verify_claims(repo: str) -> list[str]:
     root = Path(repo)
-    manifest = root / "vulcan-claims.toml"
+    manifest = root / "claims.toml"
     if not manifest.exists():
         return []  # absence handled by caller policy; see scan()
     claims = tomllib.loads(manifest.read_text()).get("claim", [])
